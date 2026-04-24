@@ -14,6 +14,7 @@ const DEFAULT_CATEGORIES = [
   { slug: 'bijgerecht', name: 'Bijgerecht', sortOrder: 50 },
   { slug: 'desserts', name: 'Desserts', sortOrder: 60 },
   { slug: 'snacks', name: 'Snacks', sortOrder: 70 },
+  { slug: 'drankjes', name: 'Drankjes', sortOrder: 80 },
 ]
 
 export async function runStartupTasks() {
