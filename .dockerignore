@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# CI & editor config
+.github
+.vscode
+.idea
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Next.js build output (rebuilt inside container)
+.next
+out
+
+# Local dev & test data (must NEVER ship inside image — PVC holds these in prod)
+data
+public/uploads
+*.db
+*.db-*
+
+# Environment files (secrets via k8s env, not baked in)
+.env
+.env.*
+
+# Docs & meta
+README.md
+AGENTS.md
+CLAUDE.md
+*.md
+
+# OS & misc
+.DS_Store
+Thumbs.db

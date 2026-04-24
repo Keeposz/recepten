@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# app data (SQLite + uploaded images) — lives on PVC in prod
+/data/
+/public/uploads/
