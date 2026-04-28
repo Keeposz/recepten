@@ -70,8 +70,8 @@ export async function createRecipe(formData: FormData): Promise<ActionResult> {
   const slug = await uniqueSlug(input.title, slugExists)
 
   try {
-    await db.transaction(async (tx) => {
-      const [created] = await tx
+    db.transaction((tx) => {
+      const [created] = tx
         .insert(schema.recipes)
         .values({
           slug,
@@ -85,25 +85,30 @@ export async function createRecipe(formData: FormData): Promise<ActionResult> {
           imagePath,
         })
         .returning({ id: schema.recipes.id })
+        .all()
 
       if (input.ingredients.length > 0) {
-        await tx.insert(schema.ingredients).values(
-          input.ingredients.map((ing, index) => ({
-            recipeId: created.id,
-            position: index,
-            quantity: ing.quantity,
-            name: ing.name,
-          })),
-        )
+        tx.insert(schema.ingredients)
+          .values(
+            input.ingredients.map((ing, index) => ({
+              recipeId: created.id,
+              position: index,
+              quantity: ing.quantity,
+              name: ing.name,
+            })),
+          )
+          .run()
       }
       if (input.steps.length > 0) {
-        await tx.insert(schema.steps).values(
-          input.steps.map((step, index) => ({
-            recipeId: created.id,
-            position: index,
-            body: step.body,
-          })),
-        )
+        tx.insert(schema.steps)
+          .values(
+            input.steps.map((step, index) => ({
+              recipeId: created.id,
+              position: index,
+              body: step.body,
+            })),
+          )
+          .run()
       }
     })
   } catch (err) {
@@ -163,9 +168,8 @@ export async function updateRecipe(
   }
 
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(schema.recipes)
+    db.transaction((tx) => {
+      tx.update(schema.recipes)
         .set({
           slug: nextSlug,
           title: input.title,
@@ -179,28 +183,33 @@ export async function updateRecipe(
           updatedAt: sql`(CURRENT_TIMESTAMP)`,
         })
         .where(eq(schema.recipes.id, existing.id))
+        .run()
 
-      await tx.delete(schema.ingredients).where(eq(schema.ingredients.recipeId, existing.id))
-      await tx.delete(schema.steps).where(eq(schema.steps.recipeId, existing.id))
+      tx.delete(schema.ingredients).where(eq(schema.ingredients.recipeId, existing.id)).run()
+      tx.delete(schema.steps).where(eq(schema.steps.recipeId, existing.id)).run()
 
       if (input.ingredients.length > 0) {
-        await tx.insert(schema.ingredients).values(
-          input.ingredients.map((ing, index) => ({
-            recipeId: existing.id,
-            position: index,
-            quantity: ing.quantity,
-            name: ing.name,
-          })),
-        )
+        tx.insert(schema.ingredients)
+          .values(
+            input.ingredients.map((ing, index) => ({
+              recipeId: existing.id,
+              position: index,
+              quantity: ing.quantity,
+              name: ing.name,
+            })),
+          )
+          .run()
       }
       if (input.steps.length > 0) {
-        await tx.insert(schema.steps).values(
-          input.steps.map((step, index) => ({
-            recipeId: existing.id,
-            position: index,
-            body: step.body,
-          })),
-        )
+        tx.insert(schema.steps)
+          .values(
+            input.steps.map((step, index) => ({
+              recipeId: existing.id,
+              position: index,
+              body: step.body,
+            })),
+          )
+          .run()
       }
     })
   } catch (err) {
