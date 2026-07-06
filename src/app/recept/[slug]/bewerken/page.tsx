@@ -23,6 +23,9 @@ export default async function EditRecipePage({
     servings: recipe.servings,
     prepMinutes: recipe.prepMinutes,
     cookMinutes: recipe.cookMinutes,
+    proteinG: recipe.proteinG,
+    carbsG: recipe.carbsG,
+    fatG: recipe.fatG,
     notes: recipe.notes,
     imagePath: recipe.imagePath,
     ingredients: recipe.ingredients.map((ing) => ({

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const categories = sqliteTable('category', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -21,6 +21,12 @@ export const recipes = sqliteTable(
     servings: integer('servings'),
     prepMinutes: integer('prep_minutes'),
     cookMinutes: integer('cook_minutes'),
+    // Voedingswaarde per portie. Nullable — niet elk recept heeft (al) macro's.
+    // kcal wordt niet opgeslagen maar altijd berekend uit deze drie (zie lib/nutrition.ts),
+    // zodat de calorieën nooit uit sync raken met de macro's.
+    proteinG: real('protein_g'),
+    carbsG: real('carbs_g'),
+    fatG: real('fat_g'),
     imagePath: text('image_path'),
     notes: text('notes'),
     createdAt: text('created_at')

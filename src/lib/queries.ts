@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { asc, count, desc, eq } from 'drizzle-orm'
+import { asc, count, desc, eq, isNotNull, or } from 'drizzle-orm'
 
 import { db, schema } from '@/db/server'
 
@@ -96,6 +96,35 @@ export async function getRecipeBySlug(slug: string) {
 
   return { ...recipe, category, ingredients, steps }
 }
+
+/**
+ * Alle recepten met minstens één ingevulde macro, voor de dagplanner-picker.
+ * Macro's zijn per portie; kcal wordt client-side berekend uit de macro's.
+ */
+export async function listRecipesForPlanner() {
+  return db
+    .select({
+      id: schema.recipes.id,
+      slug: schema.recipes.slug,
+      title: schema.recipes.title,
+      categoryName: schema.categories.name,
+      proteinG: schema.recipes.proteinG,
+      carbsG: schema.recipes.carbsG,
+      fatG: schema.recipes.fatG,
+    })
+    .from(schema.recipes)
+    .innerJoin(schema.categories, eq(schema.recipes.categoryId, schema.categories.id))
+    .where(
+      or(
+        isNotNull(schema.recipes.proteinG),
+        isNotNull(schema.recipes.carbsG),
+        isNotNull(schema.recipes.fatG),
+      ),
+    )
+    .orderBy(asc(schema.categories.sortOrder), asc(schema.recipes.title))
+}
+
+export type PlannerRecipe = Awaited<ReturnType<typeof listRecipesForPlanner>>[number]
 
 export async function slugExists(slug: string): Promise<boolean> {
   const [row] = await db

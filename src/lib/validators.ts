@@ -17,6 +17,10 @@ export const recipeFormSchema = z.object({
   servings: z.string(),
   prepMinutes: z.string(),
   cookMinutes: z.string(),
+  // Voedingswaarde per portie (los ingevuld; kcal wordt afgeleid, niet ingevoerd).
+  proteinG: z.string(),
+  carbsG: z.string(),
+  fatG: z.string(),
   notes: z.string().max(4000),
   ingredients: z.array(ingredientFormSchema).min(1, 'Minstens één ingrediënt'),
   steps: z.array(stepFormSchema).min(1, 'Minstens één stap'),
@@ -34,6 +38,18 @@ function optionalNonNegativeInt(value: unknown): number | null {
   return n
 }
 
+// Voedingswaarden mogen decimalen hebben (bv. 3,7 g vet). Komma → punt.
+function optionalNonNegativeNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const normalized = typeof value === 'string' ? value.replace(',', '.').trim() : value
+  if (normalized === '') return null
+  const n = Number(normalized)
+  if (!Number.isFinite(n) || n < 0) {
+    throw new Error('Moet een positief getal zijn')
+  }
+  return n
+}
+
 function nullableText(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
@@ -47,6 +63,9 @@ export const recipeInputSchema = z.object({
   servings: z.preprocess(optionalNonNegativeInt, z.number().int().nonnegative().nullable()),
   prepMinutes: z.preprocess(optionalNonNegativeInt, z.number().int().nonnegative().nullable()),
   cookMinutes: z.preprocess(optionalNonNegativeInt, z.number().int().nonnegative().nullable()),
+  proteinG: z.preprocess(optionalNonNegativeNumber, z.number().nonnegative().nullable()),
+  carbsG: z.preprocess(optionalNonNegativeNumber, z.number().nonnegative().nullable()),
+  fatG: z.preprocess(optionalNonNegativeNumber, z.number().nonnegative().nullable()),
   notes: z.preprocess(nullableText, z.string().max(4000).nullable()),
   ingredients: z
     .array(

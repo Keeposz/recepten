@@ -21,7 +21,13 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { createRecipe, updateRecipe } from '@/lib/actions'
 import { imageUrl } from '@/lib/image-url'
+import { kcalOf } from '@/lib/nutrition'
 import { recipeFormSchema, type RecipeFormValues } from '@/lib/validators'
+
+function parseDecimal(value: string): number {
+  const n = Number(value.replace(',', '.'))
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
 
 type Category = { id: number; slug: string; name: string }
 
@@ -33,6 +39,9 @@ export type RecipeFormInitial = {
   servings: number | null
   prepMinutes: number | null
   cookMinutes: number | null
+  proteinG: number | null
+  carbsG: number | null
+  fatG: number | null
   notes: string | null
   imagePath: string | null
   ingredients: { quantity: string | null; name: string }[]
@@ -63,6 +72,9 @@ function toDefaults(
     servings: initial?.servings != null ? String(initial.servings) : '',
     prepMinutes: initial?.prepMinutes != null ? String(initial.prepMinutes) : '',
     cookMinutes: initial?.cookMinutes != null ? String(initial.cookMinutes) : '',
+    proteinG: initial?.proteinG != null ? String(initial.proteinG) : '',
+    carbsG: initial?.carbsG != null ? String(initial.carbsG) : '',
+    fatG: initial?.fatG != null ? String(initial.fatG) : '',
     notes: initial?.notes ?? '',
     ingredients: initial?.ingredients?.length
       ? initial.ingredients.map((i) => ({ quantity: i.quantity ?? '', name: i.name }))
@@ -93,6 +105,15 @@ export function RecipeForm({ categories, initialCategorySlug, initial }: Props) 
     formState: { errors },
   } = form
   const categoryId = watch('categoryId')
+  const [proteinG, carbsG, fatG] = watch(['proteinG', 'carbsG', 'fatG'])
+  const hasMacros = [proteinG, carbsG, fatG].some((v) => v.trim() !== '')
+  const computedKcal = Math.round(
+    kcalOf({
+      proteinG: parseDecimal(proteinG),
+      carbsG: parseDecimal(carbsG),
+      fatG: parseDecimal(fatG),
+    }),
+  )
 
   const ingredients = useFieldArray({ control, name: 'ingredients' })
   const steps = useFieldArray({ control, name: 'steps' })
@@ -116,6 +137,9 @@ export function RecipeForm({ categories, initialCategorySlug, initial }: Props) 
     fd.set('servings', values.servings)
     fd.set('prepMinutes', values.prepMinutes)
     fd.set('cookMinutes', values.cookMinutes)
+    fd.set('proteinG', values.proteinG)
+    fd.set('carbsG', values.carbsG)
+    fd.set('fatG', values.fatG)
     fd.set('notes', values.notes)
     fd.set('ingredients', JSON.stringify(values.ingredients))
     fd.set('steps', JSON.stringify(values.steps))
@@ -190,6 +214,62 @@ export function RecipeForm({ categories, initialCategorySlug, initial }: Props) 
           <div className="grid gap-1.5">
             <Label htmlFor="cookMinutes">Kooktijd (min)</Label>
             <Input id="cookMinutes" type="number" min={0} {...register('cookMinutes')} />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <Label className="text-base">Voedingswaarde per portie</Label>
+          <span className="font-mono text-xs text-muted-foreground">
+            {hasMacros ? (
+              <>
+                ≈ <span className="font-semibold text-foreground">{computedKcal}</span> kcal
+              </>
+            ) : (
+              'optioneel'
+            )}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Per 1 portie. kcal wordt automatisch berekend uit de macro’s (4/4/9) — geen apart veld.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="proteinG">Eiwit (g)</Label>
+            <Input
+              id="proteinG"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              placeholder="28"
+              {...register('proteinG')}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="carbsG">Koolhydraten (g)</Label>
+            <Input
+              id="carbsG"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              placeholder="15"
+              {...register('carbsG')}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="fatG">Vet (g)</Label>
+            <Input
+              id="fatG"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              placeholder="3,7"
+              {...register('fatG')}
+            />
           </div>
         </div>
       </section>

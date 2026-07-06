@@ -5,6 +5,7 @@ import { Pencil } from 'lucide-react'
 
 import { DeleteRecipeButton } from '@/components/delete-recipe-button'
 import { imageUrl } from '@/lib/image-url'
+import { kcalOf, formatGrams } from '@/lib/nutrition'
 import { getRecipeBySlug } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,18 @@ export default async function RecipePage({
   const url = imageUrl(recipe.imagePath)
   const prep = formatMinutes(recipe.prepMinutes)
   const cook = formatMinutes(recipe.cookMinutes)
+
+  const hasMacros =
+    recipe.proteinG != null || recipe.carbsG != null || recipe.fatG != null
+  const kcal = hasMacros
+    ? Math.round(
+        kcalOf({
+          proteinG: recipe.proteinG ?? 0,
+          carbsG: recipe.carbsG ?? 0,
+          fatG: recipe.fatG ?? 0,
+        }),
+      )
+    : null
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -107,6 +120,36 @@ export default async function RecipePage({
             <dd className="mt-1 font-display text-2xl uppercase leading-none">{cook ?? '—'}</dd>
           </div>
         </dl>
+      )}
+
+      {hasMacros && (
+        <div className="mb-10">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Voedingswaarde per portie
+            </h2>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              ± {kcal} kcal
+            </span>
+          </div>
+          <dl className="grid grid-cols-4 border-2 border-foreground">
+            {[
+              { label: 'kcal', value: String(kcal) },
+              { label: 'Eiwit', value: recipe.proteinG != null ? `${formatGrams(recipe.proteinG)} g` : '—' },
+              { label: 'Koolh.', value: recipe.carbsG != null ? `${formatGrams(recipe.carbsG)} g` : '—' },
+              { label: 'Vet', value: recipe.fatG != null ? `${formatGrams(recipe.fatG)} g` : '—' },
+            ].map((m, idx) => (
+              <div key={m.label} className={idx !== 3 ? 'border-r-2 border-foreground p-4' : 'p-4'}>
+                <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {m.label}
+                </dt>
+                <dd className="mt-1 font-display text-2xl uppercase leading-none tabular-nums">
+                  {m.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       )}
 
       <section className="mb-12">

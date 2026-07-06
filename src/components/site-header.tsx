@@ -27,6 +27,12 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-sm font-display uppercase tracking-wide">
+          <Link
+            href="/planner"
+            className="rounded-md border-2 border-foreground bg-foreground px-2.5 py-1 whitespace-nowrap text-background hover:bg-accent hover:text-accent-foreground hover:border-foreground"
+          >
+            Planner
+          </Link>
           {categories.map((c) => (
             <Link
               key={c.id}
