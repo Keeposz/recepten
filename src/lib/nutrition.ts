@@ -53,6 +53,35 @@ export function kcalOf(macros: Partial<Macros>): number {
   return p * 4 + c * 4 + f * 9
 }
 
+// Bijgerechten die vaak variëren: rijst & pasta, ingevoerd als DROOG gewicht.
+// Koken voegt geen kcal toe (enkel water), dus droog gewicht = wat je binnenkrijgt.
+// Macro's per 100 g droog product, per variant.
+export const SIDES = {
+  rice: {
+    label: 'Rijst',
+    variants: {
+      wit: { label: 'Wit · basmati/jasmijn', per100g: { proteinG: 6.7, carbsG: 79, fatG: 0.9 } },
+      zilvervlies: { label: 'Zilvervlies', per100g: { proteinG: 7.5, carbsG: 77, fatG: 2.7 } },
+    },
+  },
+  pasta: {
+    label: 'Pasta',
+    variants: {
+      wit: { label: 'Wit', per100g: { proteinG: 12.5, carbsG: 75, fatG: 1.5 } },
+      volkoren: { label: 'Volkoren', per100g: { proteinG: 14, carbsG: 68, fatG: 2.5 } },
+    },
+  },
+} as const
+
+export type RiceVariant = keyof typeof SIDES.rice.variants
+export type PastaVariant = keyof typeof SIDES.pasta.variants
+
+/** Macro's voor een hoeveelheid (gram) van een bijgerecht met bekende waarde per 100 g. */
+export function macrosFromGrams(per100g: Macros, grams: number): Macros {
+  const k = (grams > 0 ? grams : 0) / 100
+  return { proteinG: per100g.proteinG * k, carbsG: per100g.carbsG * k, fatG: per100g.fatG * k }
+}
+
 export type DayTarget = Macros & { kcal: number; label: string }
 
 /** Het macro- + kcal-doel voor een gekozen dagtype (met optionele carb-override). */

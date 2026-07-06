@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Pencil } from 'lucide-react'
 
+import { AddToLoggerButton } from '@/components/add-to-logger-button'
 import { DeleteRecipeButton } from '@/components/delete-recipe-button'
 import { imageUrl } from '@/lib/image-url'
 import { kcalOf, formatGrams } from '@/lib/nutrition'
@@ -73,6 +74,7 @@ export default async function RecipePage({
           )}
         </div>
         <div className="flex gap-2 print:hidden">
+          {hasMacros && <AddToLoggerButton recipeId={recipe.id} title={recipe.title} />}
           <Link
             href={`/recept/${recipe.slug}/bewerken`}
             className="inline-flex items-center gap-1.5 border-2 border-foreground bg-background px-3 py-2 font-display uppercase text-xs tracking-wide shadow-[3px_3px_0_0_var(--foreground)] transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[4px_4px_0_0_var(--foreground)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0_0_var(--foreground)]"

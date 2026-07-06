@@ -98,10 +98,10 @@ export async function getRecipeBySlug(slug: string) {
 }
 
 /**
- * Alle recepten met minstens één ingevulde macro, voor de dagplanner-picker.
+ * Alle recepten met minstens één ingevulde macro, voor de logger.
  * Macro's zijn per portie; kcal wordt client-side berekend uit de macro's.
  */
-export async function listRecipesForPlanner() {
+export async function listRecipesForLogger() {
   return db
     .select({
       id: schema.recipes.id,
@@ -124,7 +124,7 @@ export async function listRecipesForPlanner() {
     .orderBy(asc(schema.categories.sortOrder), asc(schema.recipes.title))
 }
 
-export type PlannerRecipe = Awaited<ReturnType<typeof listRecipesForPlanner>>[number]
+export type LoggerRecipe = Awaited<ReturnType<typeof listRecipesForLogger>>[number]
 
 export async function slugExists(slug: string): Promise<boolean> {
   const [row] = await db

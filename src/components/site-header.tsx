@@ -28,10 +28,10 @@ export async function SiteHeader() {
 
         <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-sm font-display uppercase tracking-wide">
           <Link
-            href="/planner"
+            href="/logger"
             className="rounded-md border-2 border-foreground bg-foreground px-2.5 py-1 whitespace-nowrap text-background hover:bg-accent hover:text-accent-foreground hover:border-foreground"
           >
-            Planner
+            Logger
           </Link>
           {categories.map((c) => (
             <Link

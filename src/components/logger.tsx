@@ -6,81 +6,61 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   DAY_TYPES,
-  DEFAULT_DAY_TYPE,
   MAINTENANCE_KCAL,
+  SIDES,
   dayTarget,
   formatGrams,
   kcalOf,
+  macrosFromGrams,
+  type Macros,
+  type PastaVariant,
+  type RiceVariant,
 } from '@/lib/nutrition'
-import type { PlannerRecipe } from '@/lib/queries'
-
-const STORAGE_KEY = 'recepten:planner:v1'
-
-const MEALS = [
-  { id: 'ontbijt', label: 'Ontbijt' },
-  { id: 'lunch', label: 'Lunch' },
-  { id: 'diner', label: 'Diner' },
-  { id: 'snacks', label: 'Snacks' },
-] as const
-
-type MealId = (typeof MEALS)[number]['id']
-type Item = { recipeId: number; portions: number }
-type Meals = Record<MealId, Item[]>
-
-const EMPTY_MEALS: Meals = { ontbijt: [], lunch: [], diner: [], snacks: [] }
-
-type StoredState = { date: string; dayType: string; meals: Meals }
-
-function todayStr(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
+import {
+  MEALS,
+  emptyMeals,
+  emptySides,
+  loadState,
+  saveState,
+  todayStr,
+  type MealId,
+  type Meals,
+  type Sides,
+} from '@/lib/logger-store'
+import type { LoggerRecipe } from '@/lib/queries'
 
 function round(n: number): number {
   return Math.round(n)
 }
 
-export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
-  const [dayType, setDayType] = useState<string>(DEFAULT_DAY_TYPE)
-  const [meals, setMeals] = useState<Meals>(EMPTY_MEALS)
+export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
+  const [dayType, setDayType] = useState<string>(DAY_TYPES[0].id)
+  const [meals, setMeals] = useState<Meals>(emptyMeals)
+  const [sides, setSides] = useState<Sides>(emptySides)
   const [loaded, setLoaded] = useState(false)
 
   const byId = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes])
 
-  // Laad de opgeslagen dag — maar enkel als het nog vandaag is. Nieuwe dag = leeg.
+  // Laad de dag van vandaag; luister ook naar wijzigingen uit een ander tabblad
+  // (bv. de "Loggen"-knop op een recept in een tweede tab).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredState
-        if (parsed.date === todayStr()) {
-          setDayType(parsed.dayType ?? DEFAULT_DAY_TYPE)
-          setMeals({ ...EMPTY_MEALS, ...parsed.meals })
-        } else {
-          localStorage.removeItem(STORAGE_KEY)
-        }
-      }
-    } catch {
-      // corrupte state — negeren, verse dag
+    const sync = () => {
+      const s = loadState()
+      setDayType(s.dayType)
+      setMeals(s.meals)
+      setSides(s.sides)
     }
+    sync()
     setLoaded(true)
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
   }, [])
 
-  // Bewaar bij elke wijziging (pas nadat we geladen hebben, anders overschrijven we).
   useEffect(() => {
     if (!loaded) return
-    const state: StoredState = { date: todayStr(), dayType, meals }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [loaded, dayType, meals])
+    saveState({ date: todayStr(), dayType, meals, sides })
+  }, [loaded, dayType, meals, sides])
 
   const totals = useMemo(() => {
     let proteinG = 0
@@ -95,17 +75,15 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
         fatG += (r.fatG ?? 0) * item.portions
       }
     }
+    const rice = macrosFromGrams(SIDES.rice.variants[sides.riceVariant].per100g, sides.riceRawG)
+    const pasta = macrosFromGrams(SIDES.pasta.variants[sides.pastaVariant].per100g, sides.pastaRawG)
+    proteinG += rice.proteinG + pasta.proteinG
+    carbsG += rice.carbsG + pasta.carbsG
+    fatG += rice.fatG + pasta.fatG
     return { proteinG, carbsG, fatG, kcal: kcalOf({ proteinG, carbsG, fatG }) }
-  }, [meals, byId])
+  }, [meals, sides, byId])
 
   const target = dayTarget(dayType)
-
-  function addItem(mealId: MealId, recipeId: number) {
-    setMeals((prev) => ({
-      ...prev,
-      [mealId]: [...prev[mealId], { recipeId, portions: 1 }],
-    }))
-  }
 
   function setPortions(mealId: MealId, index: number, portions: number) {
     setMeals((prev) => ({
@@ -113,48 +91,28 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
       [mealId]: prev[mealId].map((it, i) => (i === index ? { ...it, portions } : it)),
     }))
   }
-
   function removeItem(mealId: MealId, index: number) {
-    setMeals((prev) => ({
-      ...prev,
-      [mealId]: prev[mealId].filter((_, i) => i !== index),
-    }))
+    setMeals((prev) => ({ ...prev, [mealId]: prev[mealId].filter((_, i) => i !== index) }))
   }
-
   function clearDay() {
-    setMeals(EMPTY_MEALS)
+    setMeals(emptyMeals())
+    setSides(emptySides())
   }
 
-  const itemCount = MEALS.reduce((sum, m) => sum + meals[m.id].length, 0)
+  const itemCount =
+    MEALS.reduce((sum, m) => sum + meals[m.id].length, 0) +
+    (sides.riceRawG > 0 ? 1 : 0) +
+    (sides.pastaRawG > 0 ? 1 : 0)
 
   const bars = [
-    {
-      key: 'kcal',
-      label: 'kcal',
-      current: round(totals.kcal),
-      target: round(target.kcal),
-      unit: '',
-    },
-    {
-      key: 'protein',
-      label: 'Eiwit',
-      current: totals.proteinG,
-      target: target.proteinG,
-      unit: ' g',
-    },
-    {
-      key: 'carbs',
-      label: 'Koolhydraten',
-      current: totals.carbsG,
-      target: target.carbsG,
-      unit: ' g',
-    },
+    { key: 'kcal', label: 'kcal', current: round(totals.kcal), target: round(target.kcal), unit: '' },
+    { key: 'protein', label: 'Eiwit', current: totals.proteinG, target: target.proteinG, unit: ' g' },
+    { key: 'carbs', label: 'Koolhydraten', current: totals.carbsG, target: target.carbsG, unit: ' g' },
     { key: 'fat', label: 'Vet', current: totals.fatG, target: target.fatG, unit: ' g' },
   ]
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-      {/* Linkerkolom: dagtype + maaltijden */}
       <div className="space-y-8">
         <section>
           <div className="mb-3 flex items-center justify-between">
@@ -197,25 +155,12 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
           </div>
         </section>
 
-        {recipes.length === 0 && (
-          <p className="border-2 border-dashed border-foreground/30 px-4 py-3 text-sm text-muted-foreground">
-            Nog geen recepten met macro’s. Vul ze in bij een recept (Bewerken → Voedingswaarde), of
-            draai de backfill — dan verschijnen ze in de keuzelijsten.
-          </p>
-        )}
-
         {MEALS.map((meal) => (
           <section key={meal.id}>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="font-display text-2xl uppercase tracking-tight">{meal.label}</h2>
-              <div className="w-48 shrink-0">
-                <RecipePicker recipes={recipes} onPick={(id) => addItem(meal.id, id)} />
-              </div>
-            </div>
-
+            <h2 className="mb-3 font-display text-2xl uppercase tracking-tight">{meal.label}</h2>
             {meals[meal.id].length === 0 ? (
               <p className="border-2 border-dashed border-foreground/25 px-4 py-3 text-sm text-muted-foreground">
-                Nog niets gekozen.
+                Nog niets gelogd.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -269,9 +214,44 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
             )}
           </section>
         ))}
+
+        {/* Rijst & pasta apart, per droog gewicht */}
+        <section>
+          <h2 className="mb-1 font-display text-2xl uppercase tracking-tight">Bijgerecht</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Vul in hoeveel <strong>droge</strong> rijst/pasta je neemt — de macro’s worden er
+            automatisch bij geteld. <span className="text-muted-foreground/80">(Gekookt = zelfde
+            kcal, enkel meer water.)</span>
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SideInput
+              label={SIDES.rice.label}
+              variants={Object.entries(SIDES.rice.variants).map(([id, v]) => ({
+                id,
+                label: v.label,
+                per100g: v.per100g,
+              }))}
+              variant={sides.riceVariant}
+              grams={sides.riceRawG}
+              onVariant={(id) => setSides((s) => ({ ...s, riceVariant: id as RiceVariant }))}
+              onGrams={(g) => setSides((s) => ({ ...s, riceRawG: g }))}
+            />
+            <SideInput
+              label={SIDES.pasta.label}
+              variants={Object.entries(SIDES.pasta.variants).map(([id, v]) => ({
+                id,
+                label: v.label,
+                per100g: v.per100g,
+              }))}
+              variant={sides.pastaVariant}
+              grams={sides.pastaRawG}
+              onVariant={(id) => setSides((s) => ({ ...s, pastaVariant: id as PastaVariant }))}
+              onGrams={(g) => setSides((s) => ({ ...s, pastaRawG: g }))}
+            />
+          </div>
+        </section>
       </div>
 
-      {/* Rechterkolom: totalen t.o.v. dagdoel */}
       <aside className="lg:sticky lg:top-20 lg:self-start">
         <div className="border-2 border-foreground bg-card p-5 shadow-[6px_6px_0_0_var(--foreground)]">
           <div className="mb-4 flex items-baseline justify-between">
@@ -291,6 +271,77 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
           </p>
         </div>
       </aside>
+    </div>
+  )
+}
+
+function SideInput({
+  label,
+  variants,
+  variant,
+  grams,
+  onVariant,
+  onGrams,
+}: {
+  label: string
+  variants: { id: string; label: string; per100g: Macros }[]
+  variant: string
+  grams: number
+  onVariant: (id: string) => void
+  onGrams: (grams: number) => void
+}) {
+  const current = variants.find((v) => v.id === variant) ?? variants[0]
+  const per100g = current.per100g
+  const macros = macrosFromGrams(per100g, grams)
+  return (
+    <div className="border-2 border-foreground px-3 py-2.5">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-sm uppercase tracking-wide">{label}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {variants.map((v) => {
+              const active = v.id === current.id
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => onVariant(v.id)}
+                  className={`border-2 border-foreground px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                    active
+                      ? 'bg-foreground text-background'
+                      : 'bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            step={5}
+            inputMode="numeric"
+            value={grams || ''}
+            onChange={(e) => onGrams(Math.max(0, Number(e.target.value) || 0))}
+            className="w-20 text-center tabular-nums"
+            aria-label={`${label} in gram droog`}
+          />
+          <span className="font-mono text-xs text-muted-foreground">g</span>
+        </div>
+      </div>
+      <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+        droog · per 100 g: E {formatGrams(per100g.proteinG)} · K {formatGrams(per100g.carbsG)} · V{' '}
+        {formatGrams(per100g.fatG)}
+      </p>
+      {grams > 0 && (
+        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-foreground">
+          = {round(kcalOf(macros))} kcal · E {formatGrams(macros.proteinG)} · K{' '}
+          {formatGrams(macros.carbsG)} · V {formatGrams(macros.fatG)}
+        </p>
+      )}
     </div>
   )
 }
@@ -331,37 +382,5 @@ function Bar({
         {over ? `${fmt(-remaining)}${unit} over` : `nog ${fmt(remaining)}${unit}`} · {round(pct)}%
       </div>
     </div>
-  )
-}
-
-function RecipePicker({
-  recipes,
-  onPick,
-}: {
-  recipes: PlannerRecipe[]
-  onPick: (recipeId: number) => void
-}) {
-  // Gecontroleerde Select die na een keuze weer leegt, zodat je meerdere keer kan toevoegen.
-  const [value, setValue] = useState('')
-  return (
-    <Select
-      value={value}
-      onValueChange={(v) => {
-        if (!v) return
-        onPick(Number(v))
-        setValue('')
-      }}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="+ Recept toevoegen" />
-      </SelectTrigger>
-      <SelectContent>
-        {recipes.map((r) => (
-          <SelectItem key={r.id} value={String(r.id)}>
-            {r.title}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
