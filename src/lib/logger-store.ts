@@ -3,7 +3,12 @@
 // Zowel de logger-pagina als de "Loggen"-knop op recepten gebruiken dit,
 // zodat ze exact dezelfde dag delen.
 
-import { DEFAULT_DAY_TYPE, type PastaVariant, type RiceVariant } from '@/lib/nutrition'
+import {
+  DEFAULT_DAY_TYPE,
+  type BreadVariant,
+  type PastaVariant,
+  type RiceVariant,
+} from '@/lib/nutrition'
 
 export const STORAGE_KEY = 'recepten:logger:v1'
 
@@ -22,6 +27,9 @@ export type Sides = {
   riceVariant: RiceVariant
   pastaRawG: number
   pastaVariant: PastaVariant
+  breadCount: number
+  breadVariant: BreadVariant
+  sandwichCount: number
 }
 export type LoggerState = {
   date: string
@@ -34,7 +42,15 @@ export function emptyMeals(): Meals {
   return { ontbijt: [], lunch: [], diner: [], snacks: [] }
 }
 export function emptySides(): Sides {
-  return { riceRawG: 0, riceVariant: 'wit', pastaRawG: 0, pastaVariant: 'wit' }
+  return {
+    riceRawG: 0,
+    riceVariant: 'wit',
+    pastaRawG: 0,
+    pastaVariant: 'wit',
+    breadCount: 0,
+    breadVariant: 'bruin',
+    sandwichCount: 0,
+  }
 }
 
 export function todayStr(): string {

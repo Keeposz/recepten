@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 
+import { LoggerNavLink } from '@/components/logger-nav-link'
 import { MJMark } from '@/components/mj-mark'
 import { listCategories } from '@/lib/queries'
 
@@ -27,12 +28,7 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-sm font-display uppercase tracking-wide">
-          <Link
-            href="/logger"
-            className="rounded-md border-2 border-foreground bg-foreground px-2.5 py-1 whitespace-nowrap text-background hover:bg-accent hover:text-accent-foreground hover:border-foreground"
-          >
-            Logger
-          </Link>
+          <LoggerNavLink />
           {categories.map((c) => (
             <Link
               key={c.id}

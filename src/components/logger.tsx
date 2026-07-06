@@ -6,13 +6,17 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  BREAD,
   DAY_TYPES,
   MAINTENANCE_KCAL,
+  SANDWICH,
   SIDES,
   dayTarget,
   formatGrams,
   kcalOf,
   macrosFromGrams,
+  scaleMacros,
+  type BreadVariant,
   type Macros,
   type PastaVariant,
   type RiceVariant,
@@ -75,11 +79,17 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
         fatG += (r.fatG ?? 0) * item.portions
       }
     }
-    const rice = macrosFromGrams(SIDES.rice.variants[sides.riceVariant].per100g, sides.riceRawG)
-    const pasta = macrosFromGrams(SIDES.pasta.variants[sides.pastaVariant].per100g, sides.pastaRawG)
-    proteinG += rice.proteinG + pasta.proteinG
-    carbsG += rice.carbsG + pasta.carbsG
-    fatG += rice.fatG + pasta.fatG
+    const extras = [
+      macrosFromGrams(SIDES.rice.variants[sides.riceVariant].per100g, sides.riceRawG),
+      macrosFromGrams(SIDES.pasta.variants[sides.pastaVariant].per100g, sides.pastaRawG),
+      scaleMacros(BREAD.variants[sides.breadVariant].per1, sides.breadCount),
+      scaleMacros(SANDWICH.variants.sandwich.per1, sides.sandwichCount),
+    ]
+    for (const e of extras) {
+      proteinG += e.proteinG
+      carbsG += e.carbsG
+      fatG += e.fatG
+    }
     return { proteinG, carbsG, fatG, kcal: kcalOf({ proteinG, carbsG, fatG }) }
   }, [meals, sides, byId])
 
@@ -102,7 +112,9 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
   const itemCount =
     MEALS.reduce((sum, m) => sum + meals[m.id].length, 0) +
     (sides.riceRawG > 0 ? 1 : 0) +
-    (sides.pastaRawG > 0 ? 1 : 0)
+    (sides.pastaRawG > 0 ? 1 : 0) +
+    (sides.breadCount > 0 ? 1 : 0) +
+    (sides.sandwichCount > 0 ? 1 : 0)
 
   const bars = [
     { key: 'kcal', label: 'kcal', current: round(totals.kcal), target: round(target.kcal), unit: '' },
@@ -147,7 +159,7 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
                     {dt.label}
                   </span>
                   <span className="mt-1 block font-mono text-[10px] uppercase tracking-wider opacity-70">
-                    {dt.carbsG} g kh · {dt.hint}
+                    {dt.carbsG} g kh{dt.hint ? ` · ${dt.hint}` : ''}
                   </span>
                 </button>
               )
@@ -215,38 +227,89 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
           </section>
         ))}
 
-        {/* Rijst & pasta apart, per droog gewicht */}
+        {/* Rijst & pasta, per droog gewicht */}
         <section>
-          <h2 className="mb-1 font-display text-2xl uppercase tracking-tight">Bijgerecht</h2>
+          <h2 className="mb-1 font-display text-2xl uppercase tracking-tight">Rijst &amp; pasta</h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            Vul in hoeveel <strong>droge</strong> rijst/pasta je neemt — de macro’s worden er
-            automatisch bij geteld. <span className="text-muted-foreground/80">(Gekookt = zelfde
-            kcal, enkel meer water.)</span>
+            Hoeveel <strong>droge</strong> rijst/pasta je neemt.{' '}
+            <span className="text-muted-foreground/80">
+              (Gekookt = zelfde kcal, enkel meer water.)
+            </span>
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <SideInput
+            <AmountInput
               label={SIDES.rice.label}
               variants={Object.entries(SIDES.rice.variants).map(([id, v]) => ({
                 id,
                 label: v.label,
-                per100g: v.per100g,
+                per: v.per100g,
               }))}
               variant={sides.riceVariant}
-              grams={sides.riceRawG}
+              amount={sides.riceRawG}
+              step={5}
+              unitSuffix="g"
+              perLabel="droog · per 100 g"
+              toFactor={(g) => g / 100}
               onVariant={(id) => setSides((s) => ({ ...s, riceVariant: id as RiceVariant }))}
-              onGrams={(g) => setSides((s) => ({ ...s, riceRawG: g }))}
+              onAmount={(g) => setSides((s) => ({ ...s, riceRawG: g }))}
             />
-            <SideInput
+            <AmountInput
               label={SIDES.pasta.label}
               variants={Object.entries(SIDES.pasta.variants).map(([id, v]) => ({
                 id,
                 label: v.label,
-                per100g: v.per100g,
+                per: v.per100g,
               }))}
               variant={sides.pastaVariant}
-              grams={sides.pastaRawG}
+              amount={sides.pastaRawG}
+              step={5}
+              unitSuffix="g"
+              perLabel="droog · per 100 g"
+              toFactor={(g) => g / 100}
               onVariant={(id) => setSides((s) => ({ ...s, pastaVariant: id as PastaVariant }))}
-              onGrams={(g) => setSides((s) => ({ ...s, pastaRawG: g }))}
+              onAmount={(g) => setSides((s) => ({ ...s, pastaRawG: g }))}
+            />
+          </div>
+        </section>
+
+        {/* Brood & sandwiches, per stuk — vooral voor de lunch */}
+        <section>
+          <h2 className="mb-1 font-display text-2xl uppercase tracking-tight">Brood &amp; sandwich</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Aantal sneetjes of broodjes — handig voor je lunch.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <AmountInput
+              label={BREAD.label}
+              variants={Object.entries(BREAD.variants).map(([id, v]) => ({
+                id,
+                label: v.label,
+                per: v.per1,
+              }))}
+              variant={sides.breadVariant}
+              amount={sides.breadCount}
+              step={1}
+              unitSuffix="×"
+              perLabel="per sneetje"
+              toFactor={(c) => c}
+              onVariant={(id) => setSides((s) => ({ ...s, breadVariant: id as BreadVariant }))}
+              onAmount={(c) => setSides((s) => ({ ...s, breadCount: c }))}
+            />
+            <AmountInput
+              label={SANDWICH.label}
+              variants={Object.entries(SANDWICH.variants).map(([id, v]) => ({
+                id,
+                label: v.label,
+                per: v.per1,
+              }))}
+              variant="sandwich"
+              amount={sides.sandwichCount}
+              step={1}
+              unitSuffix="×"
+              perLabel="per stuk"
+              toFactor={(c) => c}
+              onVariant={() => {}}
+              onAmount={(c) => setSides((s) => ({ ...s, sandwichCount: c }))}
             />
           </div>
         </section>
@@ -275,68 +338,78 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
   )
 }
 
-function SideInput({
+function AmountInput({
   label,
   variants,
   variant,
-  grams,
+  amount,
+  step,
+  unitSuffix,
+  perLabel,
+  toFactor,
   onVariant,
-  onGrams,
+  onAmount,
 }: {
   label: string
-  variants: { id: string; label: string; per100g: Macros }[]
+  variants: { id: string; label: string; per: Macros }[]
   variant: string
-  grams: number
+  amount: number
+  step: number
+  unitSuffix: string
+  perLabel: string
+  toFactor: (amount: number) => number
   onVariant: (id: string) => void
-  onGrams: (grams: number) => void
+  onAmount: (amount: number) => void
 }) {
   const current = variants.find((v) => v.id === variant) ?? variants[0]
-  const per100g = current.per100g
-  const macros = macrosFromGrams(per100g, grams)
+  const per = current.per
+  const macros = scaleMacros(per, toFactor(amount))
   return (
     <div className="border-2 border-foreground px-3 py-2.5">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm uppercase tracking-wide">{label}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {variants.map((v) => {
-              const active = v.id === current.id
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => onVariant(v.id)}
-                  className={`border-2 border-foreground px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                    active
-                      ? 'bg-foreground text-background'
-                      : 'bg-background text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              )
-            })}
-          </div>
+          {variants.length > 1 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {variants.map((v) => {
+                const active = v.id === current.id
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => onVariant(v.id)}
+                    className={`border-2 border-foreground px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                      active
+                        ? 'bg-foreground text-background'
+                        : 'bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <Input
             type="number"
             min={0}
-            step={5}
+            step={step}
             inputMode="numeric"
-            value={grams || ''}
-            onChange={(e) => onGrams(Math.max(0, Number(e.target.value) || 0))}
+            value={amount || ''}
+            onChange={(e) => onAmount(Math.max(0, Number(e.target.value) || 0))}
             className="w-20 text-center tabular-nums"
-            aria-label={`${label} in gram droog`}
+            aria-label={`${label} aantal`}
           />
-          <span className="font-mono text-xs text-muted-foreground">g</span>
+          <span className="font-mono text-xs text-muted-foreground">{unitSuffix}</span>
         </div>
       </div>
       <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-        droog · per 100 g: E {formatGrams(per100g.proteinG)} · K {formatGrams(per100g.carbsG)} · V{' '}
-        {formatGrams(per100g.fatG)}
+        {perLabel}: E {formatGrams(per.proteinG)} · K {formatGrams(per.carbsG)} · V{' '}
+        {formatGrams(per.fatG)}
       </p>
-      {grams > 0 && (
+      {amount > 0 && (
         <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-foreground">
           = {round(kcalOf(macros))} kcal · E {formatGrams(macros.proteinG)} · K{' '}
           {formatGrams(macros.carbsG)} · V {formatGrams(macros.fatG)}

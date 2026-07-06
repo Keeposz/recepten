@@ -26,17 +26,17 @@ export type Macros = {
 export type DayType = {
   id: string
   label: string
-  /** Korte toelichting bij het dagtype (welke dagen). */
+  /** Optionele korte extra toelichting (geen dagen). Leeg = niets tonen. */
   hint: string
   carbsG: number
 }
 
 /** Enige bron van waarheid voor de koolhydraatdoelen per dagtype. */
 export const DAY_TYPES: readonly DayType[] = [
-  { id: 'rust', label: 'Rustdag', hint: 'di / do / vr', carbsG: 250 },
-  { id: 'rit_rustig', label: 'Rustige rit', hint: 'zo', carbsG: 280 },
-  { id: 'kracht', label: 'Krachtdag', hint: 'ma / wo — kettlebell', carbsG: 300 },
-  { id: 'rit_hard', label: 'Harde rit', hint: 'za — 330-360 g', carbsG: 345 },
+  { id: 'rust', label: 'Rustdag', hint: '', carbsG: 250 },
+  { id: 'rit_rustig', label: 'Rustige rit', hint: '', carbsG: 280 },
+  { id: 'kracht', label: 'Krachtdag', hint: 'kettlebell', carbsG: 300 },
+  { id: 'rit_hard', label: 'Harde rit', hint: '330-360 g', carbsG: 345 },
 ] as const
 
 export const DEFAULT_DAY_TYPE = DAY_TYPES[0].id
@@ -76,10 +76,32 @@ export const SIDES = {
 export type RiceVariant = keyof typeof SIDES.rice.variants
 export type PastaVariant = keyof typeof SIDES.pasta.variants
 
+// Brood & sandwiches, ingevoerd per STUK (aantal sneetjes / broodjes). Macro's per 1 stuk.
+// Gebaseerd op Belgische gemiddelden: snede brood ± 35 g, zachte sandwich ± 55 g.
+export const BREAD = {
+  label: 'Sneetje brood',
+  variants: {
+    wit: { label: 'Wit', per1: { proteinG: 3, carbsG: 17, fatG: 1 } }, // ± 92 kcal / snede
+    bruin: { label: 'Bruin/volkoren', per1: { proteinG: 3.2, carbsG: 15, fatG: 1 } }, // ± 82 kcal
+  },
+} as const
+export type BreadVariant = keyof typeof BREAD.variants
+
+export const SANDWICH = {
+  label: 'Sandwich',
+  // Belgisch zacht broodje ± 55 g, ± 155 kcal.
+  variants: { sandwich: { label: 'Sandwich', per1: { proteinG: 5, carbsG: 27, fatG: 3 } } },
+} as const
+
+/** Schaalt macro's met een factor (bv. gram/100, of aantal stuks). */
+export function scaleMacros(base: Macros, factor: number): Macros {
+  const k = factor > 0 ? factor : 0
+  return { proteinG: base.proteinG * k, carbsG: base.carbsG * k, fatG: base.fatG * k }
+}
+
 /** Macro's voor een hoeveelheid (gram) van een bijgerecht met bekende waarde per 100 g. */
 export function macrosFromGrams(per100g: Macros, grams: number): Macros {
-  const k = (grams > 0 ? grams : 0) / 100
-  return { proteinG: per100g.proteinG * k, carbsG: per100g.carbsG * k, fatG: per100g.fatG * k }
+  return scaleMacros(per100g, grams / 100)
 }
 
 export type DayTarget = Macros & { kcal: number; label: string }
