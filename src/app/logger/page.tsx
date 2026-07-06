@@ -22,7 +22,7 @@ export default async function LoggerPage() {
         Logger
       </h1>
       <p className="mb-8 mt-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
-        ↻ Resets daily · voeg toe via de knop “Loggen” op een recept
+        ↻ Resets daily · voeg toe via de knop “Log” op een recept
       </p>
 
       <Logger recipes={recipes} />
