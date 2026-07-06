@@ -72,7 +72,11 @@ export function loadState(): LoggerState {
 
 export function saveState(state: LoggerState): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, date: todayStr() }))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, date: todayStr() }))
+  } catch {
+    // localStorage geblokkeerd/vol (bv. private mode) — stil negeren i.p.v. crashen
+  }
 }
 
 /** Voegt een recept toe aan een maaltijd van vandaag (gebruikt door de "Loggen"-knop). */
