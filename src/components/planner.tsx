@@ -197,6 +197,13 @@ export function Planner({ recipes }: { recipes: PlannerRecipe[] }) {
           </div>
         </section>
 
+        {recipes.length === 0 && (
+          <p className="border-2 border-dashed border-foreground/30 px-4 py-3 text-sm text-muted-foreground">
+            Nog geen recepten met macro’s. Vul ze in bij een recept (Bewerken → Voedingswaarde), of
+            draai de backfill — dan verschijnen ze in de keuzelijsten.
+          </p>
+        )}
+
         {MEALS.map((meal) => (
           <section key={meal.id}>
             <div className="mb-3 flex items-center justify-between gap-3">
