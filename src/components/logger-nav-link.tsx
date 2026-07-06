@@ -16,7 +16,7 @@ export function LoggerNavLink() {
         'rounded-md border-2 px-2.5 py-1 whitespace-nowrap',
         active
           ? 'border-foreground bg-foreground text-background'
-          : 'border-foreground bg-background hover:bg-accent hover:text-accent-foreground',
+          : 'border-transparent hover:border-foreground hover:bg-accent/10',
       )}
     >
       Logger
