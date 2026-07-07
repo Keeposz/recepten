@@ -202,7 +202,8 @@ export function Logger({ recipes }: { recipes: LoggerRecipe[] }) {
                       <Input
                         type="number"
                         min={0}
-                        step={0.5}
+                        step="any"
+                        inputMode="decimal"
                         value={item.portions}
                         onChange={(e) =>
                           setPortions(meal.id, index, Math.max(0, Number(e.target.value) || 0))
